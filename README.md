@@ -19,7 +19,7 @@ The header shows the signed-in email and a Sign out button. Sign-out asks before
 
 ## Data behavior
 
-Supabase is the source of truth on each login; bundled sample data and browser backups are never uploaded automatically. All nine Excel sheets are imported (585 records). Current Affiliates, GOOD, and BAD REVIEW appear in the main navigation. Other sheets are available under More sheets. GOOD and FUTUREPOSSIBLE Affiliates are empty in the source. Samples has no header row, so its columns use Excel letters and its first row remains a data record.
+Supabase is the source of truth on each login; bundled sample data and browser backups are never uploaded automatically. All nine Excel sheets are imported (585 records). Current Affiliates, GOOD, and BAD REVIEW appear in the main navigation. Additional imported sheets are retained in the database and hidden from navigation for now. GOOD and FUTUREPOSSIBLE Affiliates are empty in the source. Samples has no header row, so its columns use Excel letters and its first row remains a data record.
 
 Original typed cell values, formats, source row numbers, formulas, and cached formula results are retained as source metadata inside each sheet/record. The table displays editable text values. Source metadata records the original Excel import and is not recalculated when dashboard cells change. Blank formatting-only rows are excluded. `supabase/import-report.json` lists the source checksum and per-sheet counts.
 
