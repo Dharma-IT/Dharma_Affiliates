@@ -28,17 +28,62 @@ function fieldColor(header: string, value: string) {
   if (header === 'Review') return v === '5 star' ? 'color-green' : v === '4 star' ? 'color-teal' : v === '3 star' ? 'color-amber' : v === 'eliminada' ? 'color-neutral' : 'color-rose'
   return 'color-neutral'
 }
-function App() {
-  const [sheets,setSheets] = useState<Sheet[]>(()=>{try {const saved=localStorage.getItem(KEY);return normalizeSheets(saved?JSON.parse(saved):seed)}catch{return normalizeSheets(seed)}})
+function App({ initial, initialRevision, password }: { initial: Sheet[] | null; initialRevision: number; password: string }) {
+  const [sheets,setSheets] = useState<Sheet[]>(()=>{
+    if (initial) return normalizeSheets(initial)
+    try { const saved = localStorage.getItem(KEY); return normalizeSheets(saved ? JSON.parse(saved) : seed) }
+    catch { return normalizeSheets(seed) }
+  })
+  const revision = useRef(initialRevision)
+  const lastSaved = useRef(initial ? JSON.stringify(normalizeSheets(initial)) : '')
+  const [savedSnapshot, setSavedSnapshot] = useState(initial ? JSON.stringify(normalizeSheets(initial)) : '')
+  const saving = useRef(false)
+  const latest = useRef(sheets)
+  const [saveTick, setSaveTick] = useState(0)
+  const [saveStatus, setSaveStatus] = useState(initial ? 'Saved to database.' : 'Preparing database?')
   const [tab,setTab]=useState(0)
   const [search,setSearch]=useState('')
   const [quality,setQuality]=useState('All qualities')
   const [notice,setNotice]=useState('')
-  const [saveError,setSaveError]=useState(false)
+  const [saveError,setSaveError]=useState('')
   const [position,setPosition]=useState(0)
   const scroll=useRef<HTMLDivElement>(null)
   const sheet=sheets[tab]
-  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(sheets));setSaveError(false)}catch{setSaveError(true)}},[sheets])
+  useEffect(() => {
+    latest.current = sheets
+    try { localStorage.setItem(KEY, JSON.stringify(sheets)) } catch { /* Database remains the source of truth. */ }
+    if (JSON.stringify(sheets) === lastSaved.current) return
+    const timer = setTimeout(async () => {
+      if (saving.current) return
+      saving.current = true
+      setSaveStatus('Saving to database?')
+      setSaveError('')
+      const snapshot = JSON.stringify(latest.current)
+      try {
+        const response = await fetch('/api/workbook', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + password },
+          body: JSON.stringify({ sheets: JSON.parse(snapshot), revision: revision.current }),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Could not save changes.')
+        revision.current = result.revision
+        lastSaved.current = snapshot
+        setSavedSnapshot(snapshot)
+        setSaveStatus('Saved to database.')
+        setSaveTick(t => t + 1)
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : 'Could not save changes.')
+      } finally { saving.current = false }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [sheets, password, saveTick])
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (JSON.stringify(latest.current) !== lastSaved.current) { event.preventDefault(); event.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [])
   useEffect(()=>{if(notice){const timer=setTimeout(()=>setNotice(''),3000);return ()=>clearTimeout(timer)}},[notice])
   const qualityIndex=sheet.headers.indexOf('Quality')
   const rows=useMemo(()=>sheet.rows.filter(r=>r.values.some(v=>v.toLowerCase().includes(search.toLowerCase()))&&(quality==='All qualities'||r.values[qualityIndex]===quality)),[sheet,search,quality,qualityIndex])
@@ -54,11 +99,31 @@ function App() {
     <main>
       <section className="hero"><div className="hero-copy"><div className="eyebrow">DHARMA PARTNERSHIPS</div><span className="hero-symbol" aria-hidden="true">✧</span><h1>{tab===0?<>Affiliate<br/>Management</>:tab===1?<>Good<br/>Affiliates</>:<>Review<br/>Follow-ups</>}</h1><p>{tab===2?'Keep every conversation, review, and follow-up in one place.':'Manage your creators, track content, and grow lasting partnerships with clear handoffs.'}</p></div><div className="hero-card"><img src={logo} alt=""/><h2>{title}</h2><p>{tab===2?'Review feedback, update outcomes, and keep your next steps clear.':'Every creator, collaboration, delivery, and update in one focused, editable workspace.'}</p><a href="#production-table">VIEW {tab===2?'REVIEWS':'AFFILIATES'} <span>↓</span></a><div className="hero-card-footer"><span>{sheet.rows.length} {tab===2?'reviews':'affiliates'}</span><span>One connected workspace</span></div></div></section>
       <section className="production-card" id="production-table"><div className="section-heading"><div><div className="eyebrow">{tab===2?'REVIEW TRACKER':'AFFILIATE DIRECTORY'}</div><h2>{tab===2?'Review Follow-up Table':'Affiliate Production Table'}</h2><p>{tab===2?'Edit reviews, contact details, and follow-up outcomes directly in the table.':'Manage accounts, content, deliveries, and collaboration details in one editable table.'}</p></div><div className="actions"><button onClick={add}>Add row</button><button onClick={()=>download()}>Export CSV</button><button onClick={()=>download(true)}>Export JSON</button></div></div>
-      <div className="color-legend" aria-label="Status color key"><span><i className="legend-green"/>Good / Yes / Delivered</span><span><i className="legend-amber"/>Medium / Waiting</span><span><i className="legend-orange"/>Low / In process</span><span><i className="legend-rose"/>No / Not contact</span></div><div className="table-toolbar"><span className={'save-label '+(saveError?'error':'')} role="status"><span className="status-dot"/>{saveError?'Storage full. Export to keep changes.':'Saved in this browser.'}</span><div className="filter-tools"><input aria-label="Search records" placeholder="Search this sheet…" value={search} onChange={e=>setSearch(e.target.value)}/>{qualityIndex>=0&&<select aria-label="Filter by quality" value={quality} onChange={e=>setQuality(e.target.value)}><option>All qualities</option>{[...new Set(sheet.rows.map(r=>r.values[qualityIndex]).filter(Boolean))].map(q=><option key={q}>{q}</option>)}</select>}</div></div>
+      <div className="color-legend" aria-label="Status color key"><span><i className="legend-green"/>Good / Yes / Delivered</span><span><i className="legend-amber"/>Medium / Waiting</span><span><i className="legend-orange"/>Low / In process</span><span><i className="legend-rose"/>No / Not contact</span></div><div className="table-toolbar"><span className={'save-label '+(saveError?'error':'')} role="status"><span className="status-dot"/>{saveError || (JSON.stringify(sheets) !== savedSnapshot ? 'Changes pending: ' + saveStatus.replace('Saved to database.', 'Waiting to save.') : saveStatus)}{saveError && <button onClick={() => setSaveTick(t => t + 1)}>Retry save</button>}</span><div className="filter-tools"><input aria-label="Search records" placeholder="Search this sheet…" value={search} onChange={e=>setSearch(e.target.value)}/>{qualityIndex>=0&&<select aria-label="Filter by quality" value={quality} onChange={e=>setQuality(e.target.value)}><option>All qualities</option>{[...new Set(sheet.rows.map(r=>r.values[qualityIndex]).filter(Boolean))].map(q=><option key={q}>{q}</option>)}</select>}</div></div>
       <div className="scroll-controls"><button aria-label="Scroll table left" onClick={()=>move(Math.max(0,position-20))}>←</button><input type="range" min="0" max="100" value={position} aria-label="Horizontal table position" onChange={e=>move(Number(e.target.value))}/><button aria-label="Scroll table right" onClick={()=>move(Math.min(100,position+20))}>→</button></div>
       <div className="table-scroll" ref={scroll} onScroll={e=>{const el=e.currentTarget;setPosition(el.scrollWidth>el.clientWidth?el.scrollLeft/(el.scrollWidth-el.clientWidth)*100:0)}}><table><thead><tr>{sheet.headers.map((h,i)=><th key={i}>{h}</th>)}<th>Actions</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}>{sheet.headers.map((h,i)=>{const options=dropdownOptions[h] || (h==='Review'?['1 Star','2 Star','3 Star','4 Star','5 Star','Eliminada']:null);return <td key={i} className={['Status','Outcome'].includes(h)?'wide-cell':''}>{options?<select className={'status-select '+fieldColor(h,r.values[i]||'')} aria-label={h+' for '+(r.values[0]||'new record')} value={r.values[i]||''} onChange={e=>update(r.id,i,e.target.value)}><option value="">Select…</option>{[...new Set([...options,...sheet.rows.map(row=>row.values[i]).filter(Boolean)])].map(v=><option className={fieldColor(h,v)} key={v}>{v}</option>)}</select>:['Status','Outcome','Product'].includes(h)?<textarea aria-label={h+' for '+(r.values[0]||'new record')} placeholder={h} value={r.values[i]||''} onChange={e=>update(r.id,i,e.target.value)}/>:<input aria-label={h+' for '+(r.values[0]||'new record')} placeholder={h} value={r.values[i]||''} onChange={e=>update(r.id,i,e.target.value)}/>}{h==='TikTok Acct'&&r.values[i]&&<a className="account-link" href={'https://www.tiktok.com/@'+encodeURIComponent(r.values[i].replace(/^@/,''))} target="_blank" rel="noreferrer">Open account ↗</a>}</td>})}<td><button className="delete-row" onClick={()=>remove(r.id)} aria-label={'Delete '+(r.values[0]||'new row')}>Delete</button></td></tr>)}</tbody></table>{!rows.length&&<div className="empty"><span>✧</span><h3>{sheet.rows.length?'No matching records':'Start with a new connection'}</h3><p>{sheet.rows.length?'Try another search or clear the filters.':'This sheet is ready for your first affiliate.'}</p><button onClick={()=>sheet.rows.length?(setSearch(''),setQuality('All qualities')):add()}>{sheet.rows.length?'Clear filters':'Add row'}</button></div>}</div><footer className="table-footer"><span>{rows.length} of {sheet.rows.length} records</span><span>Edit any field · Changes save automatically</span></footer>
       </section><footer className="page-footer"><span>DHARMA</span><p>Affiliate workspace</p><span>Made for meaningful partnerships.</span></footer>
     </main>{notice&&<div className="toast" role="status">{notice}</div>}
   </div>
 }
-export default App
+function Workspace() {
+  const [password, setPassword] = useState('')
+  const [session, setSession] = useState<{ sheets: Sheet[] | null; revision: number; password: string } | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  async function connect(event: React.FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const response = await fetch('/api/workbook', { headers: { Authorization: 'Bearer ' + password }, cache: 'no-store' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not load the database.')
+      setSession({ ...result, password })
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not connect.') }
+    finally { setLoading(false) }
+  }
+  if (session) return <App initial={session.sheets} initialRevision={session.revision} password={session.password} />
+  return <main className="workspace-login"><form onSubmit={connect}><img src={logo} alt="Dharma" width="160" /><h1>Affiliate workspace</h1><p>Enter the workspace password to load your shared database.</p><label>Workspace password<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label><button disabled={loading}>{loading ? 'Connecting?' : 'Open workspace'}</button>{error && <p role="alert">{error}</p>}</form></main>
+}
+export default Workspace

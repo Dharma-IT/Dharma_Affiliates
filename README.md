@@ -1,75 +1,33 @@
-# React + TypeScript + Vite
+# Dharma Affiliates
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Deploy this repository to **Vercel** using the Vite preset. The React frontend and `/api/workbook` Vercel Function deploy together. No Express server, separate backend host, or always-running process is needed. Supabase hosts the persistent database.
 
-Currently, two official plugins are available:
+## One-time setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Run [`supabase/schema.sql`](supabase/schema.sql) in your Supabase project?s SQL Editor. The table is private to the server-side service role.
+2. In Vercel ? Project Settings ? Environment Variables, set these for each environment you deploy:
+   - `SUPABASE_URL`: your Supabase project URL (or use `SUPABASE_REST_URL` ending in `/rest/v1`). Existing `VITE_SUPABASE_URL` is also accepted.
+   - `SUPABASE_SECRET_KEY`: your Supabase secret or legacy service-role key. Never prefix this key with `VITE_`.
+   - `WORKSPACE_PASSWORD`: a long, unique password shared with authorized workspace users.
+3. Deploy or redeploy. Build command: `npm run build`; output: `dist`. `vercel.json` supplies these settings. Open the deployment and enter the workspace password.
 
-## React Compiler
+The publishable Supabase key is not required. Database secrets are used only by the Vercel Function. The workspace password is kept in memory and must be re-entered after reloading. Everyone with that password can read and edit the entire affiliate workbook.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Data behavior
 
-## Expanding the ESLint configuration
+On the first successful connection to an empty database, the current browser?s existing workbook is migrated if available; otherwise the included workbook seeds the database. After that, Supabase is the source of truth on each login. Updates are debounced, serialized, and saved with a revision check. A concurrent edit produces a conflict instead of overwriting another user?s work; export your pending edits before reloading and reconciling them. Reload to see other users? changes; live subscriptions are not enabled.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Browser storage holds a best-effort local backup, but is never reported as a successful database save. Failed saves show an error and a retry button. CSV/JSON export remains available. Navigating away while changes are pending triggers the browser?s unsaved-changes prompt.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Local development and validation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Copy `.env.example` to `.env.local` and fill in the values. Use `npx vercel dev` to serve both Vite and the Vercel API route. `npm run dev` alone serves only the frontend and cannot connect the workspace API.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```sh
+npm install
+npm run build
+npm run lint
+node --test tests/workbook.test.mjs
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+Before production use, verify the deployed URL by changing a cell, waiting for ?Saved to database?, and reopening in a second browser. SQL setup and a live deployment are required for this end-to-end check.
