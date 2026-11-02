@@ -1,0 +1,32 @@
+{
+  "Live/videos": [
+    "Both",
+    "Live",
+    "Videos"
+  ],
+  "Collab": [
+    "OPEN COLLAB",
+    "TARGET COLLAB",
+    "WAITING",
+    "TARGET COLLAB - ADRI",
+    "TARGET COLLAB- ADRI"
+  ],
+  "Delivery": [
+    "Delivered ✅",
+    "In process ❌"
+  ],
+  "Quality": [
+    "Good",
+    "Medium",
+    "Low",
+    "Not contact"
+  ],
+  "LeadDyno": [
+    "YES",
+    "NO"
+  ],
+  "Any Content?": [
+    "NO",
+    "YES"
+  ]
+}
