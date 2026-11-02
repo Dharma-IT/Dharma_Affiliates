@@ -22,3 +22,20 @@ td{background:#fffcf3;border-bottom:1px solid #e6ebde;padding-top:15px;padding-b
 .workspace-login button:disabled { opacity: .65; cursor: wait; }
 .sign-in-help { color: #65766b; font-size: 13px; margin: 0; }
 .header-team button { border: 1px solid #cbded1; border-radius: 8px; padding: 8px 12px; color: #14573e; background: white; cursor: pointer; }
+
+.filter-tools input[type="search"] {
+  border-color: #c9a348;
+  background: #fffef9;
+  box-shadow: 0 0 0 1px #dfba6333, 0 0 14px #d4af3733;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.filter-tools input[type="search"]:hover {
+  border-color: #b98b27;
+  box-shadow: 0 0 0 1px #dfba6355, 0 0 18px #d4af3744;
+}
+.filter-tools input[type="search"]:focus {
+  border-color: #b98b27;
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px #d4af371a, 0 0 22px #d4af3766;
+}
