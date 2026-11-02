@@ -7,5 +7,5 @@ create table if not exists public.affiliate_workbooks (
 alter table public.affiliate_workbooks enable row level security;
 revoke all on public.affiliate_workbooks from anon, authenticated;
 grant select, insert, update on public.affiliate_workbooks to service_role;
--- Browser clients have no direct access. Only the password-protected Vercel
+-- Browser clients have no direct access. Only the Supabase-authenticated Vercel
 -- Function uses the server-side secret key to read and update this table.

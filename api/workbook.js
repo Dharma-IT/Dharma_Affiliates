@@ -1,9 +1,9 @@
-import { timingSafeEqual } from 'node:crypto'
-
-const validSheets = sheets => Array.isArray(sheets) && sheets.length === 3 &&
-  sheets.every(s => typeof s.name === 'string' && Array.isArray(s.headers) &&
+const validSheets = sheets => Array.isArray(sheets) && sheets.length >= 3 &&
+  ['Current Affiliates', 'GOOD', 'BAD REVIEW'].every(name => sheets.some(s => s?.name === name)) &&
+  new Set(sheets.map(s => s?.name)).size === sheets.length &&
+  sheets.every(s => s && typeof s.name === 'string' && Array.isArray(s.headers) &&
     s.headers.every(h => typeof h === 'string') && Array.isArray(s.rows) &&
-    s.rows.every(r => typeof r.id === 'string' && Array.isArray(r.values) &&
+    s.rows.every(r => r && typeof r.id === 'string' && Array.isArray(r.values) &&
       r.values.length === s.headers.length && r.values.every(v => typeof v === 'string')))
 
 export default async function handler(req, res) {
@@ -12,19 +12,36 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET, PUT')
     return res.status(405).json({ error: 'Method not allowed' })
   }
-  const password = process.env.WORKSPACE_PASSWORD
   const key = process.env.SUPABASE_SECRET_KEY
   const base = process.env.SUPABASE_REST_URL || (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '') + '/rest/v1'
-  if (!password || !key || !base.startsWith('https://')) return res.status(503).json({ error: 'Configure the Supabase connection and WORKSPACE_PASSWORD in Vercel.' })
-  const supplied = Buffer.from(req.headers.authorization || '')
-  const expected = Buffer.from('Bearer ' + password)
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return res.status(401).json({ error: 'Enter the workspace password.' })
+  if (!key || !base.startsWith('https://')) return res.status(503).json({ error: 'Configure the Supabase connection in Vercel.' })
+  const authorization = req.headers.authorization
+  if (typeof authorization !== 'string' || !/^Bearer \S+$/i.test(authorization)) return res.status(401).json({ error: 'Sign in to access the workspace.' })
+  // Validate with Supabase Auth on every request. Never trust a decoded JWT or
+  // browser-supplied user ID when using the privileged database key below.
+  try {
+    const auth = await fetch(new URL('/auth/v1/user', base), {
+      headers: { apikey: key, Authorization: authorization }, signal: AbortSignal.timeout(15000),
+    })
+    if (auth.status === 401 || auth.status === 403) return res.status(401).json({ error: 'Your session has expired. Sign in again.' })
+    if (!auth.ok) throw new Error('Auth unavailable')
+    const user = await auth.json()
+    if (!user.id || user.is_anonymous || !user.email_confirmed_at) return res.status(403).json({ error: 'A verified workspace account is required.' })
+    const allowed = (process.env.AFFILIATE_ALLOWED_EMAILS || '').split(',').map(email => email.trim().toLowerCase()).filter(Boolean)
+    if (allowed.length && !allowed.includes(user.email?.toLowerCase())) return res.status(403).json({ error: 'Your account does not have access to the affiliate workspace.' })
+  } catch {
+    return res.status(503).json({ error: 'Unable to verify your session. Please try again.' })
+  }
   const endpoint = base.replace(/\/$/, '') + '/affiliate_workbooks'
   const headers = { apikey: key, 'Content-Type': 'application/json' }
   const request = async (url, options = {}) => {
     const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers }, signal: AbortSignal.timeout(15000) })
     if (!response.ok) throw new Error('Database request failed')
-    return response.status === 204 ? null : response.json()
+    const body = await response.text()
+    if (!body.trim()) throw new Error('Empty database response')
+    const data = JSON.parse(body)
+    if (!Array.isArray(data)) throw new Error('Unexpected database response')
+    return data
   }
   try {
     if (req.method === 'GET') {

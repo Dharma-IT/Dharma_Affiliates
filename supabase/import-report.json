@@ -1,0 +1,58 @@
+{
+  "source": "Affiliate - Uptadate tiktok (1).xlsx",
+  "sha256": "8d1d3cdc6d38bbc07b414d7f1153902f79d04e46c6ea52b3742d479b939dafc9",
+  "sheets": [
+    {
+      "name": "Current Affiliates",
+      "rows": 127,
+      "columns": 23
+    },
+    {
+      "name": "GOOD",
+      "rows": 0,
+      "columns": 4
+    },
+    {
+      "name": "BAD REVIEW",
+      "rows": 5,
+      "columns": 4
+    },
+    {
+      "name": "HISTORY - New - Current Affilia",
+      "rows": 126,
+      "columns": 29
+    },
+    {
+      "name": "FUTUREPOSSIBLE Affiliates",
+      "rows": 0,
+      "columns": 16
+    },
+    {
+      "name": "Jose - ANALISIS",
+      "rows": 77,
+      "columns": 10
+    },
+    {
+      "name": "Afiliados potenciales",
+      "rows": 141,
+      "columns": 8
+    },
+    {
+      "name": "Samples",
+      "rows": 56,
+      "columns": 12
+    },
+    {
+      "name": "Oct 17 Información afiliadas",
+      "rows": 53,
+      "columns": 9
+    }
+  ],
+  "totalRows": 585,
+  "notes": [
+    "Blank formatting-only rows excluded.",
+    "Samples has no header: first row retained; columns labeled by Excel letter.",
+    "Original typed values, formulas and cached results retained in sourceCells.",
+    "GOOD is empty in the source workbook."
+  ]
+}

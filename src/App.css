@@ -10,3 +10,15 @@ td{background:#fffcf3;border-bottom:1px solid #e6ebde;padding-top:15px;padding-b
 .workspace-login label { display: grid; gap: 8px; }
 .workspace-login input, .workspace-login button { padding: 12px; font: inherit; }
 .workspace-login [role="alert"] { color: #a12222; }
+
+.floating-header nav > select { max-width: 240px; min-width: 120px; padding: 10px; border: 1px solid #cbded1; border-radius: 12px; color: #14573e; background: white; font: inherit; }
+
+.workspace-login form { width: min(100%, 460px); box-sizing: border-box; gap: 22px; box-shadow: 0 18px 60px #164b3710; }
+.workspace-login h1 { font-size: clamp(32px, 6vw, 44px); line-height: 1.1; margin: 12px 0; color: #14573e; }
+.workspace-login p { line-height: 1.6; }
+.workspace-login input { width: 100%; box-sizing: border-box; border: 1px solid #cbded1; border-radius: 8px; background: #fff; }
+.workspace-login input:focus { outline: 2px solid #287453; outline-offset: 2px; }
+.workspace-login .sign-in-button { background: #14573e; color: white; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.workspace-login button:disabled { opacity: .65; cursor: wait; }
+.sign-in-help { color: #65766b; font-size: 13px; margin: 0; }
+.header-team button { border: 1px solid #cbded1; border-radius: 8px; padding: 8px 12px; color: #14573e; background: white; cursor: pointer; }
