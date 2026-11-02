@@ -9,6 +9,7 @@ import './App.css'
 const logo = '/DHARMA%20-%20LOGO%20(9).png'
 const labels=['Current Affiliates','GOOD','BAD REVIEW']
 const dropdownOptions: Record<string, string[]> = dropdowns
+const searchableName = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
 function fieldColor(header: string, value: string) {
   const v = value.trim().toLowerCase()
   if (!v) return 'color-empty'
@@ -72,7 +73,12 @@ function App({ initial, initialRevision, email, onSignOut }: { initial: Sheet[];
   }, [])
   useEffect(()=>{if(notice){const timer=setTimeout(()=>setNotice(''),3000);return ()=>clearTimeout(timer)}},[notice])
   const qualityIndex=sheet.headers.indexOf('Quality')
-  const rows=useMemo(()=>sheet.rows.filter(r=>r.values.some(v=>v.toLowerCase().includes(search.toLowerCase()))&&(quality==='All qualities'||r.values[qualityIndex]===quality)),[sheet,search,quality,qualityIndex])
+  const nameIndex = sheet.headers.indexOf('Name')
+  const rows = useMemo(() => {
+    const query = searchableName(search)
+    return sheet.rows.filter(row => (!query || searchableName(row.values[nameIndex] || '').includes(query)) &&
+      (quality === 'All qualities' || row.values[qualityIndex] === quality))
+  }, [sheet, search, quality, nameIndex, qualityIndex])
   function changeTab(i:number){setTab(i);setSearch('');setQuality('All qualities');setPosition(0);if(scroll.current)scroll.current.scrollLeft=0}
   function update(id:string,col:number,value:string){setSheets(prev=>prev.map((s,i)=>i!==tab?s:{...s,rows:s.rows.map(r=>r.id!==id?r:{...r,values:r.values.map((v,j)=>j===col?value:v)})}))}
   function add(){setSearch('');setQuality('All qualities');setSheets(prev=>prev.map((s,i)=>i!==tab?s:{...s,rows:[{id:crypto.randomUUID(),values:s.headers.map(()=> '')},...s.rows]}));scroll.current?.scrollTo({top:0,left:0});setPosition(0);setNotice('New row added. Start typing to fill it in.')}
