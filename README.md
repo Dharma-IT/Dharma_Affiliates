@@ -42,6 +42,12 @@ Before production use, verify the deployed URL by changing a cell, waiting for ?
 
 ## Repeatable Excel import
 
+The empty GOOD sheet was subsequently reconstructed from the user-provided screenshot: 41 visible affiliates in screenshot order, matched against Current Affiliates for their name, phone, GMV, and status values. These values reflect the original Excel snapshot, so their formatting or content may differ from the screenshot. The original Excel import files remain unchanged. The reconstruction is saved separately in `supabase/good-reconstruction.json` and is already applied to the configured database.
+
+For a new project, run `supabase/setup-and-import.sql`, then `supabase/restore-good.sql`. The latter populates only an empty GOOD sheet and increments the workbook revision. It preserves all other sheets and skips a nonempty GOOD tab. The database now has 626 records in total, including these 41 reconstructed GOOD records. Refresh an existing dashboard session after running the migration.
+
+`node --env-file=.env.local scripts/restore-good.mjs` can reproduce and verify the reconstruction against matching Current Affiliates records. It refuses to replace a nonempty GOOD tab with different contents.
+
 The existing `affiliate_workbooks` table stores the complete workbook as JSONB with a revision for conflict detection. `supabase/schema.sql` contains only the schema; `supabase/setup-and-import.sql` includes both schema and all data. Both use the same structure consumed by `/api/workbook`.
 
 To regenerate the SQL and import payload from the source Excel file (requires Python with openpyxl):
