@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { readWorkbookResponse, requireSheets } from './lib/workbook'
+import { affiliateViews, readWorkbookResponse, requireSheets } from './lib/workbook'
 import type { Sheet } from './lib/workbook'
 import type { Session } from '@supabase/supabase-js'
 import { authenticatedFetch, supabase } from './lib/supabase'
@@ -37,7 +37,9 @@ function App({ initial, initialRevision, email, onSignOut }: { initial: Sheet[];
   const [saveError,setSaveError]=useState('')
   const [position,setPosition]=useState(0)
   const scroll=useRef<HTMLDivElement>(null)
-  const sheet=sheets[tab]
+  const views = useMemo(() => affiliateViews(sheets), [sheets])
+  const sheet=views[tab]
+  const sourceTab = sheet.name === 'GOOD' ? sheets.findIndex(s => s.name === 'Current Affiliates') : tab
   useEffect(() => {
     latest.current = sheets
     if (JSON.stringify(sheets) === lastSaved.current) return
@@ -80,14 +82,14 @@ function App({ initial, initialRevision, email, onSignOut }: { initial: Sheet[];
       (quality === 'All qualities' || row.values[qualityIndex] === quality))
   }, [sheet, search, quality, nameIndex, qualityIndex])
   function changeTab(i:number){setTab(i);setSearch('');setQuality('All qualities');setPosition(0);if(scroll.current)scroll.current.scrollLeft=0}
-  function update(id:string,col:number,value:string){setSheets(prev=>prev.map((s,i)=>i!==tab?s:{...s,rows:s.rows.map(r=>r.id!==id?r:{...r,values:r.values.map((v,j)=>j===col?value:v)})}))}
-  function add(){setSearch('');setQuality('All qualities');setSheets(prev=>prev.map((s,i)=>i!==tab?s:{...s,rows:[{id:crypto.randomUUID(),values:s.headers.map(()=> '')},...s.rows]}));scroll.current?.scrollTo({top:0,left:0});setPosition(0);setNotice('New row added. Start typing to fill it in.')}
-  function remove(id:string){if(!confirm('Delete this row? This cannot be undone.'))return;setSheets(prev=>prev.map((s,i)=>i!==tab?s:{...s,rows:s.rows.filter(r=>r.id!==id)}));setNotice('Row deleted')}
+  function update(id:string,col:number,value:string){setSheets(prev=>prev.map((s,i)=>i!==sourceTab?s:{...s,rows:s.rows.map(r=>r.id!==id?r:{...r,values:r.values.map((v,j)=>j===col?value:v)})}))}
+  function add(){setSearch('');setQuality('All qualities');setSheets(prev=>prev.map((s,i)=>i!==sourceTab?s:{...s,rows:[{id:crypto.randomUUID(),values:s.headers.map(h=> sheet.name === 'GOOD' && h === 'Quality' ? 'Good' : '')},...s.rows]}));scroll.current?.scrollTo({top:0,left:0});setPosition(0);setNotice('New row added. Start typing to fill it in.')}
+  function remove(id:string){if(!confirm(sheet.name === 'GOOD' ? 'Delete this affiliate from Current Affiliates and Good? This cannot be undone.' : 'Delete this row? This cannot be undone.'))return;setSheets(prev=>prev.map((s,i)=>i!==sourceTab?s:{...s,rows:s.rows.filter(r=>r.id!==id)}));setNotice('Row deleted')}
   function download(json=false){const data=json?JSON.stringify({sheet:sheet.name,headers:sheet.headers,rows:rows.map(r=>r.values)},null,2):'\ufeff'+[sheet.headers,...rows.map(r=>r.values)].map(row=>row.map(v=>'"'+v.replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([data],{type:json?'application/json':'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=sheet.name+(json?'.json':'.csv');a.click();URL.revokeObjectURL(url);setNotice('Export downloaded')}
   function move(value:number){setPosition(value);if(scroll.current)scroll.current.scrollLeft=(scroll.current.scrollWidth-scroll.current.clientWidth)*value/100}
   const title=tab===0?'Affiliate Management':tab===1?'Good Affiliates':tab===2?'Review Follow-ups':sheet.name
   return <div className="workspace">
-    <header className="floating-header"><a className="brand" href="/" aria-label="Dharma affiliate tool"><img src={logo} alt="Dharma logo"/><span>AFFILIATE TOOL</span></a><nav aria-label="Workbook sheets">{sheets.slice(0,3).map((s,i)=><button key={s.name} className={tab===i?'active':''} onClick={()=>changeTab(i)}>{labels[i] || s.name}<span>{s.rows.length}</span></button>)}</nav><div className="header-team"><span className="status-dot"/>{email}<button onClick={async () => { if (JSON.stringify(sheets) !== lastSaved.current && !confirm("You have unsaved changes. Sign out and discard them?")) return; try { await onSignOut() } catch { setNotice("Could not sign out. Please try again.") } }}>Sign out</button></div></header>
+    <header className="floating-header"><a className="brand" href="/" aria-label="Dharma affiliate tool"><img src={logo} alt="Dharma logo"/><span>AFFILIATE TOOL</span></a><nav aria-label="Workbook sheets">{views.slice(0,3).map((s,i)=><button key={s.name} className={tab===i?'active':''} onClick={()=>changeTab(i)}>{labels[i] || s.name}<span>{s.rows.length}</span></button>)}</nav><div className="header-team"><span className="status-dot"/>{email}<button onClick={async () => { if (JSON.stringify(sheets) !== lastSaved.current && !confirm("You have unsaved changes. Sign out and discard them?")) return; try { await onSignOut() } catch { setNotice("Could not sign out. Please try again.") } }}>Sign out</button></div></header>
     <main>
       <section className="hero"><div className="hero-copy"><div className="eyebrow">DHARMA PARTNERSHIPS</div><span className="hero-symbol" aria-hidden="true">✧</span><h1>{tab===0?<>Affiliate<br/>Management</>:tab===1?<>Good<br/>Affiliates</>:tab===2?<>Review<br/>Follow-ups</>:sheet.name}</h1><p>{tab===2?'Keep every conversation, review, and follow-up in one place.':'Manage your creators, track content, and grow lasting partnerships with clear handoffs.'}</p></div><div className="hero-card"><img src={logo} alt=""/><h2>{title}</h2><p>{tab===2?'Review feedback, update outcomes, and keep your next steps clear.':'Every creator, collaboration, delivery, and update in one focused, editable workspace.'}</p><a href="#production-table">VIEW {tab===2?'REVIEWS':'AFFILIATES'} <span>↓</span></a><div className="hero-card-footer"><span>{sheet.rows.length} {tab===2?'reviews':'affiliates'}</span><span>One connected workspace</span></div></div></section>
       <section className="production-card" id="production-table"><div className="section-heading"><div><div className="eyebrow">{tab===2?'REVIEW TRACKER':'AFFILIATE DIRECTORY'}</div><h2>{tab===2?'Review Follow-up Table':tab > 2 ? sheet.name : 'Affiliate Production Table'}</h2><p>{tab===2?'Edit reviews, contact details, and follow-up outcomes directly in the table.':'Manage accounts, content, deliveries, and collaboration details in one editable table.'}</p></div><div className="actions"><button onClick={add}>Add row</button><button onClick={()=>download()}>Export CSV</button><button onClick={()=>download(true)}>Export JSON</button></div></div>

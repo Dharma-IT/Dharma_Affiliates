@@ -1,6 +1,19 @@
 export type Row = { id: string; values: string[] }
 export type Sheet = { name: string; headers: string[]; rows: Row[] }
 
+// GOOD is a live view; keep the stored legacy sheet intact for its historical notes.
+export function affiliateViews(sheets: Sheet[]): Sheet[] {
+  const current = sheets.find(sheet => sheet.name === 'Current Affiliates')
+  if (!current) return sheets
+  const quality = current.headers.indexOf('Quality')
+  const name = current.headers.indexOf('Name')
+  return sheets.map(sheet => sheet.name === 'GOOD' ? {
+    ...sheet,
+    headers: current.headers,
+    rows: current.rows.filter(row => row.values[name]?.trim() && row.values[quality]?.trim().toLowerCase() === 'good'),
+  } : sheet)
+}
+
 export async function readWorkbookResponse(response: Response) {
   const text = await response.text()
   let result
